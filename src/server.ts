@@ -1,7 +1,13 @@
-import "./lib/error-capture";
-
-import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
+
+// Vercel runs this as the SSR entry for TanStack Start.
+// `env` is the Vercel `env` object (Vercel injects its own env; we read the
+// deployment secrets we set in the Vercel project, NEVER bake them into source).
+// If API_ORIGIN / PROXY_SECRET are missing, every /api request would fall through
+// to the app's SPA /_spa route and return empty HTML — so we short-circuit with a
+// clear 503 instead of serving the shell or leaking a generic 500.
+const API_ORIGIN = process.env.API_ORIGIN;
+const PROXY_SECRET = process.env.PROXY_SECRET;
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -46,6 +52,15 @@ function isH3SwallowedErrorBody(body: string): boolean {
 
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
+    // Proxy-only entry: when the deployment secrets aren't set yet, short-circuit
+    // so Vercel serves a JSON 503 instead of an empty HTML shell for /api/* and
+    // any other route that should have gone to the /api proxy.
+    if (!API_ORIGIN || !PROXY_SECRET) {
+      return new Response(
+        JSON.stringify({ error: "MoiJournal isn't connected to its server yet." }),
+        { status: 503, headers: { "content-type": "application/json; charset=utf-8" } },
+      );
+    }
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);

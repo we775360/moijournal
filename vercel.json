@@ -1,8 +1,20 @@
 {
+  "env": {
+    "NITRO_PRESET": "vercel"
+  },
+  "build": {
+    "env": {
+      "NITRO_PRESET": "vercel"
+    }
+  },
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://moijournal.onrender.com/api/:path*"
+      "destination": "/api"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/_spa"
     }
   ]
 }
