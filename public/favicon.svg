@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="MoiJournal">
+  <rect x="20" y="24" width="216" height="216" rx="56" fill="#3b2f2a" />
+  <rect x="12" y="12" width="232" height="232" rx="56" fill="#3b2f2a" />
+  <rect x="21" y="21" width="214" height="214" rx="47" fill="#f2b8c0" />
+  <rect x="66" y="52" width="124" height="150" rx="14" fill="#3b2f2a" />
+  <rect x="74" y="60" width="108" height="134" rx="8" fill="#fffaf2" />
+  <rect x="92" y="84" width="66" height="6" rx="3" fill="#d8e3ee" />
+  <rect x="92" y="102" width="66" height="6" rx="3" fill="#d8e3ee" />
+  <rect x="92" y="120" width="66" height="6" rx="3" fill="#d8e3ee" />
+  <rect x="92" y="138" width="44" height="6" rx="3" fill="#d8e3ee" />
+  <rect x="148" y="34" width="38" height="100" rx="7" fill="#3b2f2a" />
+  <rect x="154" y="40" width="26" height="88" rx="5" fill="#f6e3a1" />
+</svg>
