@@ -17,6 +17,12 @@ exports a whole book as a print-ready PDF.
 - **Personal themes** (Blush, Sage, Sky, Butter, Midnight) chosen at signup.
 - **Search-ready** marketing page: canonical URLs, Open Graph image, FAQ and app
   structured data, plus `robots.txt` and `sitemap.xml`.
+- **Premium by UPI.** Pay in any UPI app from a deep link or QR code, then share the UPI ID
+  you paid from; an admin approves it and the plan extends by whole months (₹99/month).
+- **Admin dashboard** at `/admin` for approving payments, granting or revoking Premium and
+  searching accounts — with no access to diary content.
+- **Installable app.** MoiJournal is a PWA: add it to an Android or iPhone home screen from
+  `/get-app` and it opens full screen like a native app.
 
 ## Plans
 
@@ -41,6 +47,31 @@ Browser ──► Vercel (TanStack Start SSR, /api proxy) ──► Render (Expr
   covers, and refuses any request that did not arrive through the website proxy.
 - **Database** — Postgres, holding bcrypt-hashed auth keys, wrapped encryption keys, and
   journal content as opaque ciphertext in `bytea` columns.
+
+### Where everything is actually stored
+
+There is no file storage, no uploads folder and no S3 bucket. Every byte of user content
+lives in Postgres, already encrypted:
+
+| What                 | Column                    | What the server holds               |
+| -------------------- | ------------------------- | ----------------------------------- |
+| Journal pages        | `pages.data` (`bytea`)    | AES-GCM ciphertext                  |
+| Book titles          | `books.data` (`bytea`)    | AES-GCM ciphertext                  |
+| **Cover photos**     | `books.cover` (`bytea`)   | ciphertext of a 480x640 WebP        |
+| Your name            | `users.profile` (`bytea`) | AES-GCM ciphertext                  |
+| Password             | `users.auth_hash`         | bcrypt of a derived auth key        |
+| Recovery code        | `users.recovery_hash`     | bcrypt of a derived auth key        |
+| Recovery code lookup | `users.recovery_lookup`   | SHA-256, so a username can be found |
+| Payments             | `payments`                | UPI ID and optional UTR only        |
+
+Cover photos never touch a filesystem. The browser shrinks the chosen photo to a 480x640
+WebP (usually under 120 KB), encrypts it with the diary key and uploads base64 ciphertext;
+the API writes that into a Postgres `bytea` column. Nothing is written to disk on Render or
+Vercel, and there is no CDN copy to leak.
+
+Because the data key exists only in the browser, staff cannot read a diary even by accident.
+That is why the admin dashboard can count how much someone wrote without showing any of it.
+See DEPLOY.md for how to become an admin.
 
 ## Security model
 

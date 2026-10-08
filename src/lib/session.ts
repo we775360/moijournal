@@ -8,6 +8,9 @@ export type MeRaw = {
   username: string;
   theme: Theme;
   plan: "free" | "premium";
+  /** ISO date the paid plan runs out; null while free. */
+  premiumUntil: string | null;
+  isAdmin: boolean;
   profile: string;
   limits: { books: number; pages: number };
   usage: { books: number; pages: number };

@@ -1,16 +1,18 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
+import { toast } from "sonner";
 import { api, ApiError } from "@/lib/api";
 import {
   deriveAuthKey,
   deriveRecoveryAuth,
   normalizeCode,
+  recoveryLookup,
   rewrapWithNewPassword,
   type WrappedKey,
 } from "@/lib/crypto";
 import { MIN_PASSWORD_LENGTH } from "@/lib/password";
 import { startSession, type AuthResponse } from "@/lib/session";
-import { btnPrimary, ErrorNote, Field, Logo } from "@/components/mj";
+import { btnPrimary, btnSoft, ErrorNote, Field, Logo } from "@/components/mj";
 import { absoluteUrl } from "@/lib/site";
 
 export const Route = createFileRoute("/recover")({
@@ -39,6 +41,30 @@ function Recover() {
   const [pw, setPw] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [findCode, setFindCode] = useState("");
+  const [found, setFound] = useState<string | null>(null);
+  const [findBusy, setFindBusy] = useState(false);
+  const [findErr, setFindErr] = useState<string | null>(null);
+
+  // The recovery code is hashed in the browser, so it can find the username without the
+  // server ever seeing the code itself.
+  async function findUsername() {
+    setFindErr(null);
+    setFound(null);
+    setFindBusy(true);
+    try {
+      const r = await api<{ username: string }>("/auth/username", {
+        method: "POST",
+        body: { recoveryLookup: await recoveryLookup(findCode) },
+      });
+      setFound(r.username);
+      toast.success("Found your diary ♡");
+    } catch (e) {
+      setFindErr(e instanceof ApiError ? e.message : "Couldn't look that up.");
+    } finally {
+      setFindBusy(false);
+    }
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -104,6 +130,54 @@ function Recover() {
           <button className={`${btnPrimary} w-full`} disabled={busy || !username || !code}>
             {busy ? "Unlocking…" : "Set new password"}
           </button>
+
+          <div className="rounded-2xl border-2 border-dashed border-ink bg-paper p-4">
+            <p className="font-bold text-ink">Forgot your username too?</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Your recovery code can look it up on its own — no password needed.
+            </p>
+            <div className="mt-3 flex flex-wrap items-end gap-2">
+              <div className="min-w-[12rem] flex-1">
+                <Field
+                  label="Recovery code"
+                  value={findCode}
+                  onChange={(e) => setFindCode(e.target.value)}
+                  placeholder="XXXX-XXXX-XXXX-XXXX-XXXX"
+                />
+              </div>
+              <button
+                type="button"
+                className={btnSoft}
+                disabled={findBusy || !findCode.trim()}
+                onClick={() => void findUsername()}
+              >
+                {findBusy ? "Looking…" : "Find it"}
+              </button>
+            </div>
+            {findErr && (
+              <div className="mt-3">
+                <ErrorNote>{findErr}</ErrorNote>
+              </div>
+            )}
+            {found && (
+              <div className="mt-3 rounded-2xl border-2 border-ink bg-butter px-4 py-3">
+                <p className="font-bold text-ink">
+                  Your username is <span className="font-mono">@{found}</span>
+                </p>
+                <button
+                  type="button"
+                  className="mt-1 text-sm font-bold text-primary hover:underline"
+                  onClick={() => {
+                    setUsername(found);
+                    setCode(findCode);
+                    toast.success(`Filled in @${found}`);
+                  }}
+                >
+                  Use it and set a new password →
+                </button>
+              </div>
+            )}
+          </div>
           <Link
             to="/login"
             className="block text-center text-sm font-bold text-muted-foreground hover:text-primary"

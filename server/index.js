@@ -44,6 +44,21 @@ const COOKIE = "mj_s";
 const SESSION_DAYS = 7;
 const DUMMY_HASH = bcrypt.hashSync("moijournal-dummy", 12);
 
+// ₹99 a month, paid by UPI. Approving a payment adds whole months, so people can pay for a
+// longer run up front, and Premium lapses back to Free on its own when the time runs out.
+const PAISE_PER_MONTH = 9_900;
+const PAY_MONTHS = [1, 3, 6, 12];
+const UPI_ID = env.UPI_ID || "8108096229@fam";
+const UPI_NAME = env.UPI_NAME || "MoiJournal";
+const SUPPORT = env.SUPPORT_INSTAGRAM || "moijournal26";
+
+// A lapsed plan behaves as free everywhere, with no cron job needed to sweep it up.
+const effectivePlan = (row) =>
+  row.plan === "premium" && (!row.premium_until || new Date(row.premium_until) > new Date())
+    ? "premium"
+    : "free";
+const USER_COLUMNS = "id, username, theme, plan, profile, token_version, premium_until, is_admin";
+
 const app = express();
 app.disable("x-powered-by");
 app.use(helmet());
@@ -113,6 +128,9 @@ const username = z
   .toLowerCase()
   .regex(/^[a-z0-9_.]{3,24}$/);
 const authKey = b64(64).min(40);
+// SHA-256 of the normalised recovery code, computed in the browser. It is only 100 bits of
+// entropy behind a 20-character code, so it can find a username but cannot be reversed.
+const recoveryLookup = b64(64).min(40);
 const wrapped = z.object({ salt: b64(64), iv: b64(64), wrapped: b64(128) }).strict();
 const theme = z.enum(["blush", "sage", "sky", "butter", "midnight"]);
 const color = z.enum(["blush", "sage", "sky", "butter", "lilac", "ink"]);
@@ -155,13 +173,16 @@ async function meJson(u) {
     "SELECT (SELECT count(*) FROM books WHERE user_id=$1)::int AS books, (SELECT count(*) FROM pages WHERE user_id=$1)::int AS pages",
     [u.id],
   );
+  const plan = effectivePlan(u);
   return {
     id: u.id,
     username: u.username,
     theme: u.theme,
-    plan: u.plan,
+    plan,
+    premiumUntil: u.premium_until ?? null,
+    isAdmin: u.is_admin === true,
     profile: toB64(u.profile),
-    limits: LIMITS[u.plan] || LIMITS.free,
+    limits: LIMITS[plan],
     usage: rows[0],
   };
 }
@@ -176,10 +197,7 @@ const auth = wrap(async (req, res, next) => {
     clearSession(res);
     return res.status(401).json({ error: "Session expired" });
   }
-  const { rows } = await pool.query(
-    "SELECT id, username, theme, plan, profile, token_version FROM users WHERE id=$1",
-    [payload.sub],
-  );
+  const { rows } = await pool.query(`SELECT ${USER_COLUMNS} FROM users WHERE id=$1`, [payload.sub]);
   const u = rows[0];
   if (!u || u.token_version !== payload.tv) {
     clearSession(res);
@@ -206,6 +224,7 @@ app.post(
         username,
         authKey,
         recoveryAuth: authKey,
+        recoveryLookup: recoveryLookup.optional(),
         keys: z.object({ pw: wrapped, rc: wrapped }).strict(),
         profile: BOOK_DATA,
         theme,
@@ -218,15 +237,28 @@ app.post(
     ]);
     try {
       const { rows } = await pool.query(
-        `INSERT INTO users (username, auth_hash, recovery_hash, keys, profile, theme)
-       VALUES ($1,$2,$3,$4,$5,$6) RETURNING id, username, theme, plan, profile, token_version`,
-        [body.username, authHash, recHash, body.keys, fromB64(body.profile), body.theme],
+        `INSERT INTO users (username, auth_hash, recovery_hash, keys, profile, theme, recovery_lookup)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING ${USER_COLUMNS}`,
+        [
+          body.username,
+          authHash,
+          recHash,
+          body.keys,
+          fromB64(body.profile),
+          body.theme,
+          body.recoveryLookup ?? null,
+        ],
       );
       setSession(res, rows[0]);
       res.json({ me: await meJson(rows[0]), keys: body.keys.pw });
     } catch (e) {
       if (e.code === "23505")
-        return res.status(409).json({ error: "That username is taken. Try another cute one!" });
+        return res.status(409).json({
+          error:
+            e.constraint === "users_recovery_lookup_idx"
+              ? "That recovery code is already in use. Please sign up again to get a new one."
+              : "That username is taken. Try another cute one!",
+        });
       throw e;
     }
   }),
@@ -272,6 +304,22 @@ app.post("/auth/logout", (_req, res) => {
   res.json({ ok: true });
 });
 
+// Forgot the username? The recovery code alone finds it. The code is normalised and hashed
+// in the browser, so this endpoint compares a lookup hash, never the code itself.
+app.post(
+  "/auth/username",
+  authLimiter,
+  wrap(async (req, res) => {
+    const body = parse(z.object({ recoveryLookup }), req.body);
+    const { rows } = await pool.query("SELECT username FROM users WHERE recovery_lookup=$1", [
+      body.recoveryLookup,
+    ]);
+    if (!rows[0])
+      return res.status(401).json({ error: "That recovery code doesn't match any diary." });
+    res.json({ username: rows[0].username });
+  }),
+);
+
 app.post(
   "/auth/recover/start",
   authLimiter,
@@ -303,7 +351,7 @@ app.post(
     const { rows: up } = await pool.query(
       `UPDATE users SET auth_hash=$2, keys = jsonb_set(keys, '{pw}', $3::jsonb), token_version = token_version + 1,
        failed = 0, locked_until = NULL
-     WHERE id=$1 RETURNING id, username, theme, plan, profile, token_version`,
+     WHERE id=$1 RETURNING ${USER_COLUMNS}`,
       [u.id, hash, JSON.stringify(body.pw)],
     );
     setSession(res, up[0]);
@@ -312,7 +360,7 @@ app.post(
 );
 
 // ---------- account ----------
-app.use(["/me", "/books", "/pages", "/auth/password"], apiLimiter);
+app.use(["/me", "/books", "/pages", "/auth/password", "/payments", "/admin"], apiLimiter);
 
 app.get(
   "/me",
@@ -333,7 +381,7 @@ app.patch(
     );
     const { rows } = await pool.query(
       `UPDATE users SET theme = COALESCE($2, theme), profile = COALESCE($3, profile) WHERE id=$1
-     RETURNING id, username, theme, plan, profile, token_version`,
+     RETURNING ${USER_COLUMNS}`,
       [req.user.id, body.theme ?? null, body.profile ? fromB64(body.profile) : null],
     );
     res.json({ me: await meJson(rows[0]) });
@@ -352,7 +400,7 @@ app.post(
     const hash = await bcrypt.hash(body.authKey, 12);
     const { rows: up } = await pool.query(
       `UPDATE users SET auth_hash=$2, keys = jsonb_set(keys, '{pw}', $3::jsonb), token_version = token_version + 1
-     WHERE id=$1 RETURNING id, username, theme, plan, profile, token_version`,
+     WHERE id=$1 RETURNING ${USER_COLUMNS}`,
       [req.user.id, hash, JSON.stringify(body.pw)],
     );
     setSession(res, up[0]);
@@ -375,13 +423,289 @@ app.delete(
   }),
 );
 
+// ---------- payments (UPI, reviewed by hand) ----------
+// A user pays ₹99 x months to the MoiJournal UPI ID and files a claim with the UPI ID they
+// paid from. Nothing here touches diary content: an admin only ever sees who paid.
+const upiVpa = z
+  .string()
+  .trim()
+  .regex(/^[a-zA-Z0-9._-]{2,64}@[a-zA-Z]{2,32}$/);
+const utrCode = z
+  .string()
+  .trim()
+  .regex(/^[0-9]{9,22}$/);
+
+app.get(
+  "/payments",
+  auth,
+  wrap(async (req, res) => {
+    const { rows } = await pool.query(
+      `SELECT id, months, amount_paise, status, created_at, reviewed_at
+       FROM payments WHERE user_id=$1 ORDER BY created_at DESC LIMIT 20`,
+      [req.user.id],
+    );
+    res.json({
+      upiId: UPI_ID,
+      upiName: UPI_NAME,
+      support: SUPPORT,
+      paisePerMonth: PAISE_PER_MONTH,
+      months: PAY_MONTHS,
+      payments: rows,
+    });
+  }),
+);
+
+app.post(
+  "/payments",
+  auth,
+  wrap(async (req, res) => {
+    const body = parse(
+      z
+        .object({
+          months: z
+            .number()
+            .int()
+            .refine((m) => PAY_MONTHS.includes(m)),
+          upiId: upiVpa,
+          utr: utrCode.optional(),
+          note: z.string().trim().max(200).optional(),
+        })
+        .strict(),
+      req.body,
+    );
+    // Premium users may still file a claim: it extends from their existing expiry rather
+    // than stacking a second plan on top.
+    const { rowCount } = await pool.query(
+      "SELECT 1 FROM payments WHERE user_id=$1 AND status='pending' LIMIT 1",
+      [req.user.id],
+    );
+    if (rowCount)
+      return res.status(409).json({ error: "You already have a payment waiting for approval ♡" });
+    const { rows } = await pool.query(
+      `INSERT INTO payments (user_id, username, months, amount_paise, upi_id, utr, note)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id, months, amount_paise, status, created_at`,
+      [
+        req.user.id,
+        req.user.username,
+        body.months,
+        PAISE_PER_MONTH * body.months,
+        body.upiId,
+        body.utr ?? null,
+        body.note ?? null,
+      ],
+    );
+    res.json({ payment: rows[0] });
+  }),
+);
+
+// ---------- admin ----------
+// Only accounts with is_admin may get past this. Turn it on with:
+//   UPDATE users SET is_admin = true WHERE username = 'your.name';
+// From here an admin sees accounts, plans and payments — never a diary, which the server
+// could not decrypt even if it wanted to.
+const admin = (req, res, next) =>
+  req.user?.is_admin ? next() : res.status(403).json({ error: "Admins only" });
+
+const paging = (req) => ({
+  limit: Math.min(Math.max(Number(req.query.limit) || 25, 1), 100),
+  offset: Math.max(Number(req.query.offset) || 0, 0),
+});
+
+app.get(
+  "/admin/summary",
+  auth,
+  admin,
+  wrap(async (_req, res) => {
+    const { rows } = await pool.query(
+      `SELECT
+         (SELECT count(*)::int FROM users) AS users,
+         (SELECT count(*)::int FROM users
+            WHERE plan='premium' AND (premium_until IS NULL OR premium_until > now())) AS premium,
+         (SELECT count(*)::int FROM payments WHERE status='pending') AS pending_payments,
+         (SELECT COALESCE(sum(amount_paise),0)::int FROM payments WHERE status='approved') AS revenue_paise,
+         (SELECT count(*)::int FROM books) AS books,
+         (SELECT count(*)::int FROM pages) AS pages`,
+    );
+    res.json(rows[0]);
+  }),
+);
+
+app.get(
+  "/admin/users",
+  auth,
+  admin,
+  wrap(async (req, res) => {
+    const q = String(req.query.q ?? "").slice(0, 40);
+    const { limit, offset } = paging(req);
+    const { rows } = await pool.query(
+      `SELECT u.id, u.username, u.theme, u.plan, u.premium_until, u.is_admin, u.created_at,
+              (SELECT count(*)::int FROM books b WHERE b.user_id=u.id) AS books,
+              (SELECT count(*)::int FROM pages p WHERE p.user_id=u.id) AS pages,
+              (SELECT max(p.updated_at) FROM pages p WHERE p.user_id=u.id) AS last_page_at
+       FROM users u
+       WHERE ($1='' OR u.username ILIKE '%' || $1 || '%')
+       ORDER BY u.created_at DESC LIMIT $2 OFFSET $3`,
+      [q, limit, offset],
+    );
+    const { rows: counted } = await pool.query(
+      "SELECT count(*)::int AS n FROM users WHERE ($1='' OR username ILIKE '%' || $1 || '%')",
+      [q],
+    );
+    res.json({ users: rows.map((u) => ({ ...u, plan: effectivePlan(u) })), total: counted[0].n });
+  }),
+);
+
+app.get(
+  "/admin/payments",
+  auth,
+  admin,
+  wrap(async (req, res) => {
+    const status = String(req.query.status ?? "");
+    const filter = ["pending", "approved", "rejected"].includes(status) ? status : "";
+    const { limit, offset } = paging(req);
+    const { rows } = await pool.query(
+      `SELECT id, username, months, amount_paise, upi_id, utr, note, status,
+              created_at, reviewed_at, reviewed_by
+       FROM payments WHERE ($1='' OR status=$1)
+       ORDER BY (status='pending') DESC, created_at DESC LIMIT $2 OFFSET $3`,
+      [filter, limit, offset],
+    );
+    res.json({ payments: rows });
+  }),
+);
+
+// Approving extends from whichever is later — now, or the Premium they already have — so a
+// renewal paid a few days early never loses the leftover days.
+function grantPremium(client, userId, months) {
+  return client.query(
+    `UPDATE users SET plan='premium',
+       premium_until = GREATEST(COALESCE(premium_until, now()), now()) + make_interval(months => $2::int)
+     WHERE id=$1 RETURNING plan, premium_until`,
+    [userId, months],
+  );
+}
+
+app.post(
+  "/admin/payments/:id/approve",
+  auth,
+  admin,
+  wrap(async (req, res) => {
+    const id = parse(uuid, req.params.id);
+    const body = parse(
+      z
+        .object({
+          months: z
+            .number()
+            .int()
+            .refine((m) => PAY_MONTHS.includes(m)),
+        })
+        .strict(),
+      req.body ?? {},
+    );
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      const { rows } = await client.query("SELECT * FROM payments WHERE id=$1 FOR UPDATE", [id]);
+      const p = rows[0];
+      if (!p) {
+        await client.query("ROLLBACK");
+        return res.status(404).json({ error: "Not found" });
+      }
+      if (p.status !== "pending") {
+        await client.query("ROLLBACK");
+        return res.status(409).json({ error: "That payment was already reviewed." });
+      }
+      const months = body.months;
+      const granted = await grantPremium(client, p.user_id, months);
+      await client.query(
+        `UPDATE payments SET status='approved', months=$2, reviewed_at=now(), reviewed_by=$3
+         WHERE id=$1`,
+        [id, months, req.user.username],
+      );
+      await client.query("COMMIT");
+      res.json({ ok: true, username: p.username, ...granted.rows[0] });
+    } catch (e) {
+      await client.query("ROLLBACK").catch(() => {});
+      throw e;
+    } finally {
+      client.release();
+    }
+  }),
+);
+
+app.post(
+  "/admin/payments/:id/reject",
+  auth,
+  admin,
+  wrap(async (req, res) => {
+    const id = parse(uuid, req.params.id);
+    const { rowCount } = await pool.query(
+      `UPDATE payments SET status='rejected', reviewed_at=now(), reviewed_by=$2
+       WHERE id=$1 AND status='pending'`,
+      [id, req.user.username],
+    );
+    if (!rowCount) return res.status(404).json({ error: "No pending payment with that id." });
+    res.json({ ok: true });
+  }),
+);
+
+// Manual levers for when a payment happens outside the app or someone needs to be reined in.
+app.patch(
+  "/admin/users/:id",
+  auth,
+  admin,
+  wrap(async (req, res) => {
+    const id = parse(uuid, req.params.id);
+    const body = parse(
+      z
+        .object({
+          action: z.enum(["grant", "revoke", "makeAdmin", "removeAdmin"]),
+          months: z
+            .number()
+            .int()
+            .refine((m) => PAY_MONTHS.includes(m))
+            .optional(),
+        })
+        .strict(),
+      req.body,
+    );
+    if (body.action === "makeAdmin" || body.action === "removeAdmin") {
+      const { rowCount } = await pool.query("UPDATE users SET is_admin=$2 WHERE id=$1", [
+        id,
+        body.action === "makeAdmin",
+      ]);
+      if (!rowCount) return res.status(404).json({ error: "Not found" });
+      return res.json({ ok: true });
+    }
+    if (body.action === "revoke") {
+      const { rowCount } = await pool.query(
+        "UPDATE users SET plan='free', premium_until=NULL WHERE id=$1",
+        [id],
+      );
+      if (!rowCount) return res.status(404).json({ error: "Not found" });
+      return res.json({ ok: true });
+    }
+    const client = await pool.connect();
+    try {
+      const granted = await grantPremium(client, id, body.months ?? 1);
+      if (!granted.rows[0]) return res.status(404).json({ error: "Not found" });
+      res.json({ ok: true, ...granted.rows[0] });
+    } finally {
+      client.release();
+    }
+  }),
+);
+
 // ---------- books ----------
 async function withLimit(userId, kind, fn) {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-    const { rows } = await client.query("SELECT plan FROM users WHERE id=$1 FOR UPDATE", [userId]);
-    const limits = LIMITS[rows[0].plan] || LIMITS.free;
+    const { rows } = await client.query(
+      "SELECT plan, premium_until FROM users WHERE id=$1 FOR UPDATE",
+      [userId],
+    );
+    const limits = LIMITS[effectivePlan(rows[0])];
     const table = kind === "books" ? "books" : "pages";
     const { rows: c } = await client.query(
       `SELECT count(*)::int AS n FROM ${table} WHERE user_id=$1`,

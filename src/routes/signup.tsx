@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { api, ApiError } from "@/lib/api";
-import { createVault, encryptJSON } from "@/lib/crypto";
+import { createVault, encryptJSON, recoveryLookup } from "@/lib/crypto";
 import { applyTheme, startSession, type AuthResponse, type Theme } from "@/lib/session";
 import { MIN_PASSWORD_LENGTH, passwordStrength } from "@/lib/password";
 import { THEMES } from "@/lib/themes";
@@ -72,6 +72,8 @@ function Signup() {
           username: uname,
           authKey: v.authKey,
           recoveryAuth: v.recoveryAuth,
+          // Lets a forgotten username be looked up from the recovery code alone.
+          recoveryLookup: await recoveryLookup(v.code),
           keys: v.keys,
           profile,
           theme,

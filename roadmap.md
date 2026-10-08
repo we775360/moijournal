@@ -9,9 +9,14 @@
 - [x] End-to-end encryption — the server stores ciphertext only
 - [x] Designed PDF export, built on the device
 - [x] Render API (`server/`) plus the same-origin `/api` proxy
+- [x] Deployed to Render + Vercel, with the shared secret and env vars in place
+- [x] Premium by UPI: deep link + QR, a claim filed with the payer's UPI ID, admin approval
+- [x] Admin dashboard at `/admin` (payments, plans, users — never diary content)
+- [x] Forgot username, recovered from the recovery code alone
+- [x] Installable PWA with an App page, plus the SEO groundwork
 
 ## Next
 
-- [ ] Deploy to Render + Vercel (needs accounts and the environment variables in DEPLOY.md)
-- [ ] Payments, so Premium can be bought instead of set in the database
+- [ ] Package the Android APK (the site installs as a PWA today — see `/get-app`)
 - [ ] Search across a book once books get long
+- [ ] Email or Instagram notifications when a payment is approved

@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -136,11 +136,21 @@ function Settings() {
           You're on <b className="text-ink">{me.plan === "premium" ? "Premium" : "Free"}</b> —{" "}
           {me.limits.books} books, {me.limits.pages} pages.
         </p>
-        {me.plan === "free" && (
+        {me.plan === "premium" && me.premiumUntil && (
           <p className="mt-2 font-hand text-xl text-primary">
-            Premium · ₹99/month · 10 books & 50 pages — coming soon!
+            Premium until{" "}
+            {new Date(me.premiumUntil).toLocaleDateString("en-IN", {
+              day: "numeric",
+              month: "short",
+              year: "numeric",
+            })}
           </p>
         )}
+        <div className="mt-4">
+          <Link to="/app/upgrade" className={btnSoft}>
+            {me.plan === "premium" ? "Add more months" : "Upgrade to Premium"}
+          </Link>
+        </div>
       </Card>
 
       <Card>

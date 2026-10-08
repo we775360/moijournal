@@ -39,6 +39,14 @@ async function kekFrom(secret: string, salt: Uint8Array) {
 
 export const normalizeCode = (code: string) => code.toUpperCase().replace(/[^A-Z0-9]/g, "");
 
+// SHA-256 of the normalised recovery code. Signup sends this alongside the wrapped keys so
+// "I forgot my username" can find the account from the code alone — the server stores only
+// this hash, never the code.
+export async function recoveryLookup(code: string) {
+  const digest = await crypto.subtle.digest("SHA-256", bs(te.encode(normalizeCode(code))));
+  return b64(new Uint8Array(digest));
+}
+
 export async function deriveAuthKey(username: string, password: string) {
   return b64(await stretch(password, te.encode(`moijournal/auth/v1/${username.toLowerCase()}`)));
 }

@@ -173,6 +173,9 @@ function Nav() {
           <a href="#pricing" className="hover:text-primary">
             Pricing
           </a>
+          <Link to="/get-app" className="hover:text-primary">
+            Get the app
+          </Link>
         </nav>
         <div className="flex items-center gap-2">
           <Link
@@ -507,6 +510,9 @@ function Pricing() {
           badge
         />
       </div>
+      <p className="mt-10 text-center font-hand text-2xl text-muted-foreground">
+        Premium is paid by UPI — ₹99 through any UPI app, no card, no auto-renew.
+      </p>
     </Section>
   );
 }
@@ -579,7 +585,20 @@ function Footer() {
         <p className="font-elegant text-lg font-semibold italic tracking-wide text-ink">
           A product by <span className="text-primary">Guneet</span>
         </p>
-        <p className="text-sm text-muted-foreground">© 2026 MoiJournal</p>
+        <p className="flex flex-wrap items-center justify-center gap-4 text-sm text-muted-foreground">
+          <Link to="/get-app" className="font-bold text-ink hover:text-primary">
+            Get the app
+          </Link>
+          <a
+            href="https://instagram.com/moijournal26"
+            target="_blank"
+            rel="noreferrer"
+            className="font-bold text-ink hover:text-primary"
+          >
+            Support
+          </a>
+          <span>© 2026 MoiJournal</span>
+        </p>
       </div>
     </footer>
   );

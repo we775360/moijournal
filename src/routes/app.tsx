@@ -35,6 +35,15 @@ function AppShell() {
             >
               📚 Shelf
             </Link>
+            {me?.plan === "free" && (
+              <Link
+                to="/app/upgrade"
+                className="rounded-full px-3 py-2 hover:bg-muted"
+                activeProps={{ className: "bg-muted" }}
+              >
+                ✨ Premium
+              </Link>
+            )}
             <Link
               to="/app/settings"
               className="rounded-full px-3 py-2 hover:bg-muted"
@@ -42,6 +51,11 @@ function AppShell() {
             >
               ⚙︎ Me
             </Link>
+            {me?.isAdmin && (
+              <Link to="/admin" className="rounded-full px-3 py-2 hover:bg-muted">
+                🛠 Admin
+              </Link>
+            )}
             <button
               className="rounded-full px-3 py-2 hover:bg-muted"
               onClick={async () => {

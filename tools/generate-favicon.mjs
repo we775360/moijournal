@@ -208,6 +208,8 @@ function toIco(images) {
 // ---------------------------------------------------------------- output
 
 const ICO_SIZES = [16, 32, 48, 256];
+// Android installs the site as an app off these two, so they ship as separate PNGs.
+const PWA_SIZES = [192, 512];
 const root = fileURLToPath(new URL("..", import.meta.url));
 const publicDir = `${root}public`;
 
@@ -218,6 +220,31 @@ const images = ICO_SIZES.map((size) => ({ size, png: toPng(icon(size), size, siz
 writeFileSync(`${publicDir}/favicon.svg`, toSvg());
 writeFileSync(`${publicDir}/favicon.ico`, toIco(images));
 writeFileSync(`${publicDir}/apple-touch-icon.png`, toPng(icon(180), 180, 180));
+for (const size of PWA_SIZES) {
+  writeFileSync(`${publicDir}/icon-${size}.png`, toPng(icon(size), size, size));
+}
+// Android crops maskable icons to its own shape, so the badge sits at 70% on a blush field
+// instead of filling the canvas edge to edge.
+const maskableSize = 512;
+const badge = maskableSize * 0.7;
+writeFileSync(
+  `${publicDir}/icon-maskable-512.png`,
+  toPng(
+    render({
+      width: maskableSize,
+      height: maskableSize,
+      shapes: scaleShapes(
+        SHAPES,
+        badge / VIEWBOX,
+        (maskableSize - badge) / 2,
+        (maskableSize - badge) / 2,
+      ),
+      background: BLUSH,
+    }),
+    maskableSize,
+    maskableSize,
+  ),
+);
 writeFileSync(
   `${publicDir}/og-image.png`,
   toPng(
@@ -233,5 +260,6 @@ writeFileSync(
 );
 
 console.log(
-  `favicon.svg, favicon.ico (${ICO_SIZES.join(", ")}), apple-touch-icon.png and og-image.png written to public/.`,
+  `favicon.svg, favicon.ico (${ICO_SIZES.join(", ")}), apple-touch-icon.png, ` +
+    `icon-${PWA_SIZES.join(".png, icon-")}.png, icon-maskable-512.png and og-image.png written to public/.`,
 );

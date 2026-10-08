@@ -10,13 +10,16 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AppRouteImport } from './routes/app'
+import { Route as GetAppRouteImport } from './routes/get-app'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as RecoverRouteImport } from './routes/recover'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as ApiSplatRouteImport } from './routes/api/$'
 import { Route as AppIndexRouteImport } from './routes/app.index'
 import { Route as AppSettingsRouteImport } from './routes/app.settings'
+import { Route as AppUpgradeRouteImport } from './routes/app.upgrade'
 import { Route as AppBookBookIdIndexRouteImport } from './routes/app.book.$bookId.index'
 import { Route as AppBookBookIdWriteRouteImport } from './routes/app.book.$bookId.write'
 
@@ -25,9 +28,19 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppRoute = AppRouteImport.update({
   id: '/app',
   path: '/app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GetAppRoute = GetAppRouteImport.update({
+  id: '/get-app',
+  path: '/get-app',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -60,6 +73,11 @@ const AppSettingsRoute = AppSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AppRoute,
 } as any)
+const AppUpgradeRoute = AppUpgradeRouteImport.update({
+  id: '/upgrade',
+  path: '/upgrade',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppBookBookIdIndexRoute = AppBookBookIdIndexRouteImport.update({
   id: '/book/$bookId/',
   path: '/book/$bookId/',
@@ -73,23 +91,29 @@ const AppBookBookIdWriteRoute = AppBookBookIdWriteRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/app': typeof AppRouteWithChildren
+  '/get-app': typeof GetAppRoute
   '/login': typeof LoginRoute
   '/recover': typeof RecoverRoute
   '/signup': typeof SignupRoute
   '/api/$': typeof ApiSplatRoute
   '/app/settings': typeof AppSettingsRoute
+  '/app/upgrade': typeof AppUpgradeRoute
   '/app/': typeof AppIndexRoute
   '/app/book/$bookId/write': typeof AppBookBookIdWriteRoute
   '/app/book/$bookId/': typeof AppBookBookIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/get-app': typeof GetAppRoute
   '/login': typeof LoginRoute
   '/recover': typeof RecoverRoute
   '/signup': typeof SignupRoute
   '/api/$': typeof ApiSplatRoute
   '/app/settings': typeof AppSettingsRoute
+  '/app/upgrade': typeof AppUpgradeRoute
   '/app': typeof AppIndexRoute
   '/app/book/$bookId/write': typeof AppBookBookIdWriteRoute
   '/app/book/$bookId': typeof AppBookBookIdIndexRoute
@@ -97,12 +121,15 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/app': typeof AppRouteWithChildren
+  '/get-app': typeof GetAppRoute
   '/login': typeof LoginRoute
   '/recover': typeof RecoverRoute
   '/signup': typeof SignupRoute
   '/api/$': typeof ApiSplatRoute
   '/app/settings': typeof AppSettingsRoute
+  '/app/upgrade': typeof AppUpgradeRoute
   '/app/': typeof AppIndexRoute
   '/app/book/$bookId/write': typeof AppBookBookIdWriteRoute
   '/app/book/$bookId/': typeof AppBookBookIdIndexRoute
@@ -111,35 +138,44 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/admin'
     | '/app'
+    | '/get-app'
     | '/login'
     | '/recover'
     | '/signup'
     | '/api/$'
     | '/app/settings'
+    | '/app/upgrade'
     | '/app/'
     | '/app/book/$bookId/write'
     | '/app/book/$bookId/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/admin'
+    | '/get-app'
     | '/login'
     | '/recover'
     | '/signup'
     | '/api/$'
     | '/app/settings'
+    | '/app/upgrade'
     | '/app'
     | '/app/book/$bookId/write'
     | '/app/book/$bookId'
   id:
     | '__root__'
     | '/'
+    | '/admin'
     | '/app'
+    | '/get-app'
     | '/login'
     | '/recover'
     | '/signup'
     | '/api/$'
     | '/app/settings'
+    | '/app/upgrade'
     | '/app/'
     | '/app/book/$bookId/write'
     | '/app/book/$bookId/'
@@ -147,7 +183,9 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRoute
   AppRoute: typeof AppRouteWithChildren
+  GetAppRoute: typeof GetAppRoute
   LoginRoute: typeof LoginRoute
   RecoverRoute: typeof RecoverRoute
   SignupRoute: typeof SignupRoute
@@ -163,11 +201,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/app': {
       id: '/app'
       path: '/app'
       fullPath: '/app'
       preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/get-app': {
+      id: '/get-app'
+      path: '/get-app'
+      fullPath: '/get-app'
+      preLoaderRoute: typeof GetAppRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -212,6 +264,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/upgrade': {
+      id: '/app/upgrade'
+      path: '/upgrade'
+      fullPath: '/app/upgrade'
+      preLoaderRoute: typeof AppUpgradeRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/book/$bookId/': {
       id: '/app/book/$bookId/'
       path: '/book/$bookId'
@@ -231,6 +290,7 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppSettingsRoute: typeof AppSettingsRoute
+  AppUpgradeRoute: typeof AppUpgradeRoute
   AppIndexRoute: typeof AppIndexRoute
   AppBookBookIdWriteRoute: typeof AppBookBookIdWriteRoute
   AppBookBookIdIndexRoute: typeof AppBookBookIdIndexRoute
@@ -238,6 +298,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppSettingsRoute: AppSettingsRoute,
+  AppUpgradeRoute: AppUpgradeRoute,
   AppIndexRoute: AppIndexRoute,
   AppBookBookIdWriteRoute: AppBookBookIdWriteRoute,
   AppBookBookIdIndexRoute: AppBookBookIdIndexRoute,
@@ -247,7 +308,9 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRoute,
   AppRoute: AppRouteWithChildren,
+  GetAppRoute: GetAppRoute,
   LoginRoute: LoginRoute,
   RecoverRoute: RecoverRoute,
   SignupRoute: SignupRoute,
