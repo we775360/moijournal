@@ -60,9 +60,21 @@ put them in code, chat or the repository.
 ## 3b. Premium, UPI payments and the admin dashboard
 
 Premium is ₹99/month and paid by hand. A signed-in user picks how many months, pays the
-MoiJournal UPI ID in any UPI app (the page offers a `upi://` deep link and a QR code), then
-files a claim with the UPI ID they paid **from**. Nothing auto-charges and no card data is
-stored anywhere; `payments` holds only that UPI ID and an optional UTR.
+MoiJournal UPI ID in any UPI app (the page opens a `upi://` deep link that pre-fills the
+amount), then files a claim with the UPI ID they paid **from**. Nothing auto-charges and no
+card data is stored anywhere; `payments` holds only that UPI ID and an optional UTR.
+
+### Adding your own UPI QR code
+
+The upgrade page does **not** generate a QR code — a generated one encodes the payee name from
+this repo rather than the one your bank has registered. To show your real FamPay QR instead:
+
+1. Put the image in `public/`, e.g. `public/fampay-qr.png`.
+2. Set `FAMPAY_QR_IMAGE = "/fampay-qr.png"` near the top of `src/routes/app.upgrade.tsx`.
+3. Redeploy the website.
+
+The QR is a convenience only — the UPI ID and the deep-link button work without it, and the
+payee is always `UPI_ID` (`8108096229@fam` by default).
 
 Approving a claim extends Premium from whichever is later — today, or the end of any Premium
 they already have — so paying a few days early never loses leftover days. When the time runs

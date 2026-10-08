@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { QRCodeSVG } from "qrcode.react";
 import { toast } from "sonner";
 import { api, ApiError } from "@/lib/api";
 import { useMe } from "@/lib/session";
@@ -15,6 +14,11 @@ import {
   type PaymentStatus,
 } from "@/lib/payments";
 import { btnPrimary, Card, ErrorNote, Field } from "@/components/mj";
+
+// Your own UPI/FamPay QR image goes here. Drop the file in `public/` and set this to its
+// path, e.g. "/fampay-qr.png". While it is empty the pay card shows only the UPI ID and the
+// deep-link button, so a QR that isn't ours is never shown.
+const FAMPAY_QR_IMAGE = "";
 
 export const Route = createFileRoute("/app/upgrade")({
   head: () => ({
@@ -163,18 +167,19 @@ function Upgrade() {
           </button>
         </div>
 
-        <div className="mt-4 flex flex-col gap-6 sm:flex-row sm:items-center">
-          <a href={link} className={`${btnPrimary} shrink-0`}>
+        <div className="mt-4 flex flex-wrap items-center gap-4">
+          <a href={link} className={btnPrimary}>
             Open a UPI app ↗
           </a>
-          <div className="hidden sm:block">
-            <p className="mb-2 font-hand text-xl text-muted-foreground">
-              or scan with your phone →
-            </p>
-          </div>
-          <div className="sticker mx-auto rounded-2xl bg-paper p-3 sm:mx-0">
-            <QRCodeSVG value={link} size={132} bgColor="#fffaf2" fgColor="#3b2f2a" />
-          </div>
+          {FAMPAY_QR_IMAGE && (
+            <img
+              src={FAMPAY_QR_IMAGE}
+              alt="MoiJournal UPI QR code"
+              width={160}
+              height={160}
+              className="sticker h-40 w-40 rounded-2xl bg-paper object-contain p-2"
+            />
+          )}
         </div>
         <p className="mt-4 text-xs text-muted-foreground">
           The UPI app opens with the amount already filled in. The name shown there comes from the

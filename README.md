@@ -17,8 +17,8 @@ exports a whole book as a print-ready PDF.
 - **Personal themes** (Blush, Sage, Sky, Butter, Midnight) chosen at signup.
 - **Search-ready** marketing page: canonical URLs, Open Graph image, FAQ and app
   structured data, plus `robots.txt` and `sitemap.xml`.
-- **Premium by UPI.** Pay in any UPI app from a deep link or QR code, then share the UPI ID
-  you paid from; an admin approves it and the plan extends by whole months (₹99/month).
+- **Premium by UPI.** Pay in any UPI app from a deep link, then share the UPI ID you paid
+  from; an admin approves it and the plan extends by whole months (₹99/month).
 - **Admin dashboard** at `/admin` for approving payments, granting or revoking Premium and
   searching accounts — with no access to diary content.
 - **Installable app.** MoiJournal is a PWA: add it to an Android or iPhone home screen from
