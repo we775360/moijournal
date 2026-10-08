@@ -1,4 +1,7 @@
 import { renderErrorPage } from "./lib/error-page";
+// Importing error-capture also installs its console.error wrapper (the side effect that
+// records the original Error), and gives us the accessor used below.
+import { consumeLastCapturedError } from "./lib/error-capture";
 
 // Vercel runs this as the SSR entry for TanStack Start.
 // `env` is the Vercel `env` object (Vercel injects its own env; we read the
@@ -6,8 +9,8 @@ import { renderErrorPage } from "./lib/error-page";
 // If API_ORIGIN / PROXY_SECRET are missing, every /api request would fall through
 // to the app's SPA /_spa route and return empty HTML — so we short-circuit with a
 // clear 503 instead of serving the shell or leaking a generic 500.
-const API_ORIGIN = process.env.API_ORIGIN;
-const PROXY_SECRET = process.env.PROXY_SECRET;
+const API_ORIGIN = process.env["API_ORIGIN"];
+const PROXY_SECRET = process.env["PROXY_SECRET"];
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;

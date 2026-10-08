@@ -11,6 +11,7 @@ import {
 import { MIN_PASSWORD_LENGTH } from "@/lib/password";
 import { startSession, type AuthResponse } from "@/lib/session";
 import { btnPrimary, ErrorNote, Field, Logo } from "@/components/mj";
+import { absoluteUrl } from "@/lib/site";
 
 export const Route = createFileRoute("/recover")({
   head: () => ({
@@ -22,7 +23,11 @@ export const Route = createFileRoute("/recover")({
         property: "og:description",
         content: "Use your recovery code to set a new MoiJournal password.",
       },
+      { property: "og:url", content: absoluteUrl("/recover") },
+      // A utility page: keep it out of the index so pages of actual content rank instead.
+      { name: "robots", content: "noindex, follow" },
     ],
+    links: [{ rel: "canonical", href: absoluteUrl("/recover") }],
   }),
   component: Recover,
 });

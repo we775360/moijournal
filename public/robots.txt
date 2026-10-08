@@ -1,3 +1,7 @@
 User-agent: *
 Allow: /
+# The diary itself and the proxy are for signed-in people, not crawlers.
 Disallow: /app
+Disallow: /api/
+
+Sitemap: https://moijournal.vercel.app/sitemap.xml

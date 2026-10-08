@@ -6,6 +6,7 @@ import { applyTheme, startSession, type AuthResponse, type Theme } from "@/lib/s
 import { MIN_PASSWORD_LENGTH, passwordStrength } from "@/lib/password";
 import { THEMES } from "@/lib/themes";
 import { btnPrimary, btnSoft, ErrorNote, Field, Logo } from "@/components/mj";
+import { absoluteUrl } from "@/lib/site";
 
 export const Route = createFileRoute("/signup")({
   head: () => ({
@@ -17,7 +18,9 @@ export const Route = createFileRoute("/signup")({
         property: "og:description",
         content: "Create your cosy, encrypted MoiJournal diary in a minute.",
       },
+      { property: "og:url", content: absoluteUrl("/signup") },
     ],
+    links: [{ rel: "canonical", href: absoluteUrl("/signup") }],
   }),
   component: Signup,
 });

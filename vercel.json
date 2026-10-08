@@ -6,15 +6,5 @@
     "env": {
       "NITRO_PRESET": "vercel"
     }
-  },
-  "rewrites": [
-    {
-      "source": "/api/:path*",
-      "destination": "/api"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/_spa"
-    }
-  ]
+  }
 }

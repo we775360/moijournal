@@ -1,5 +1,6 @@
-// Generates MoiJournal's brand icon — the SVG that browsers prefer and the multi-size
-// .ico that older browsers, bookmarks and OS shortcuts fall back to.
+// Generates MoiJournal's brand icon — the SVG that browsers prefer, the multi-size .ico
+// that older browsers, bookmarks and OS shortcuts fall back to, and the 1200x630
+// og-image.png that link previews and search results use.
 //
 //   node tools/generate-favicon.mjs
 //
@@ -34,6 +35,27 @@ const SHAPES = [
 
 const VIEWBOX = 256;
 
+// Same brand, wider canvas: the 1200x630 card social platforms and search results show.
+const OG = { width: 1200, height: 630 };
+
+const scaleShapes = (shapes, k, dx, dy) =>
+  shapes.map((s) => ({
+    ...s,
+    x: s.x * k + dx,
+    y: s.y * k + dy,
+    w: s.w * k,
+    h: s.h * k,
+    r: s.r * k,
+  }));
+
+// A ruled paper sticker with the notebook badge centred on it, drawn in the OG canvas'
+// own pixel coordinates (so it is rendered with scale 1).
+const OG_SHAPES = [
+  { x: 84, y: 60, w: 1032, h: 510, r: 48, fill: INK }, // sticker shadow
+  { x: 72, y: 48, w: 1032, h: 510, r: 48, fill: PAPER }, // card
+  ...scaleShapes(SHAPES, 1.7, 370, 85), // the badge, 435px, centred on the card
+];
+
 // ---------------------------------------------------------------- SVG
 
 function toSvg() {
@@ -66,21 +88,25 @@ function distanceToShape(px, py, { x, y, w, h, r }) {
 // edges far more simply than coverage maths would.
 const SUB = 4;
 
-function render(size) {
-  const pixels = Buffer.alloc(size * size * 4);
+// Colours are averaged over covered samples only and alpha is their share of the pixel, so
+// the PNG keeps straight (non-premultiplied) alpha and edges stay clean. A `background`
+// paints the whole canvas; without one, uncovered samples stay transparent.
+function render({ width, height, shapes, background = null, scale = 1 }) {
+  const pixels = Buffer.alloc(width * height * 4);
   const step = 1 / SUB;
-  for (let oy = 0; oy < size; oy++) {
-    for (let ox = 0; ox < size; ox++) {
+  const total = SUB * SUB;
+  for (let oy = 0; oy < height; oy++) {
+    for (let ox = 0; ox < width; ox++) {
       let r = 0;
       let g = 0;
       let b = 0;
       let hits = 0;
       for (let sy = 0; sy < SUB; sy++) {
         for (let sx = 0; sx < SUB; sx++) {
-          const px = ((ox + (sx + 0.5) * step) / size) * VIEWBOX;
-          const py = ((oy + (sy + 0.5) * step) / size) * VIEWBOX;
-          let colour = null;
-          for (const shape of SHAPES) {
+          const px = (ox + (sx + 0.5) * step) / scale;
+          const py = (oy + (sy + 0.5) * step) / scale;
+          let colour = background;
+          for (const shape of shapes) {
             if (distanceToShape(px, py, shape) <= 0) colour = shape.fill;
           }
           if (colour === null) continue;
@@ -91,9 +117,7 @@ function render(size) {
           hits++;
         }
       }
-      const total = SUB * SUB;
-      const at = (oy * size + ox) * 4;
-      // Uncovered samples stay transparent, so alpha is the covered fraction.
+      const at = (oy * width + ox) * 4;
       pixels[at] = hits === 0 ? 0 : Math.round(r / hits);
       pixels[at + 1] = hits === 0 ? 0 : Math.round(g / hits);
       pixels[at + 2] = hits === 0 ? 0 : Math.round(b / hits);
@@ -130,17 +154,17 @@ function chunk(type, data) {
   return Buffer.concat([length, body, crc]);
 }
 
-function toPng(pixels, size) {
+function toPng(pixels, width, height) {
   const ihdr = Buffer.alloc(13);
-  ihdr.writeUInt32BE(size, 0);
-  ihdr.writeUInt32BE(size, 4);
+  ihdr.writeUInt32BE(width, 0);
+  ihdr.writeUInt32BE(height, 4);
   ihdr[8] = 8; // bit depth
   ihdr[9] = 6; // truecolour with alpha
   // 10..12 stay zero: deflate, adaptive filtering, no interlace.
 
-  const stride = size * 4;
-  const raw = Buffer.alloc((stride + 1) * size);
-  for (let y = 0; y < size; y++) {
+  const stride = width * 4;
+  const raw = Buffer.alloc((stride + 1) * height);
+  for (let y = 0; y < height; y++) {
     raw[y * (stride + 1)] = 0; // filter type: none
     pixels.copy(raw, y * (stride + 1) + 1, y * stride, y * stride + stride);
   }
@@ -187,12 +211,27 @@ const ICO_SIZES = [16, 32, 48, 256];
 const root = fileURLToPath(new URL("..", import.meta.url));
 const publicDir = `${root}public`;
 
-const images = ICO_SIZES.map((size) => ({ size, png: toPng(render(size), size) }));
+const icon = (size) => render({ width: size, height: size, shapes: SHAPES, scale: size / VIEWBOX });
+
+const images = ICO_SIZES.map((size) => ({ size, png: toPng(icon(size), size, size) }));
 
 writeFileSync(`${publicDir}/favicon.svg`, toSvg());
 writeFileSync(`${publicDir}/favicon.ico`, toIco(images));
-writeFileSync(`${publicDir}/apple-touch-icon.png`, toPng(render(180), 180));
+writeFileSync(`${publicDir}/apple-touch-icon.png`, toPng(icon(180), 180, 180));
+writeFileSync(
+  `${publicDir}/og-image.png`,
+  toPng(
+    render({
+      width: OG.width,
+      height: OG.height,
+      shapes: OG_SHAPES,
+      background: BLUSH,
+    }),
+    OG.width,
+    OG.height,
+  ),
+);
 
 console.log(
-  `favicon.svg, favicon.ico (${ICO_SIZES.join(", ")}) and apple-touch-icon.png written to public/.`,
+  `favicon.svg, favicon.ico (${ICO_SIZES.join(", ")}), apple-touch-icon.png and og-image.png written to public/.`,
 );

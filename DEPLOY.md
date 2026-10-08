@@ -40,13 +40,45 @@ put them in code, chat or the repository.
 2. Framework preset: **Other**. Build command: `npm run build`.
 3. Environment variables:
 
-   | Name           | Value                             |
-   | -------------- | --------------------------------- |
-   | `NITRO_PRESET` | `vercel`                          |
-   | `API_ORIGIN`   | `https://<your-api>.onrender.com` |
-   | `PROXY_SECRET` | the **same** value as on Render   |
+   | Name            | Value                                         |
+   | --------------- | --------------------------------------------- |
+   | `NITRO_PRESET`  | `vercel`                                      |
+   | `API_ORIGIN`    | `https://<your-api>.onrender.com`             |
+   | `PROXY_SECRET`  | the **same** value as on Render               |
+   | `VITE_SITE_URL` | optional — the public URL, if not the default |
 
 4. Deploy, then sign up on your Vercel URL to check the whole path end to end.
+
+## 4. If every `/api` request answers "403 Forbidden"
+
+Every route except `/health` requires the website and the API to present the **same**
+`PROXY_SECRET`. A mismatch is the most common deploy mistake, and it looks like a plain
+`{"error":"Forbidden"}` — it is not a code problem and it is not the database.
+
+The API publishes both sides as short SHA-256 fingerprints, so you can compare the two
+values without copying the secret anywhere:
+
+- `https://<your-api>.onrender.com/health` → `proxySecretFingerprint` is what the API expects.
+- Any other request's 403 body → `expectedFingerprint` vs `sentFingerprint` (or the `x-mj-error:
+proxy-secret-mismatch` response header) says whether the website sent the right value.
+- The API also logs `[proxy] PROXY_SECRET mismatch: ...` under **Logs** on Render.
+
+If the fingerprints differ, put one value in both dashboards — Render → _Environment_ and
+Vercel → _Settings → Environment Variables_ — then **redeploy both**. Vercel bakes variables
+into a deployment, so a value added after the last deploy does nothing until you redeploy.
+
+Paste the value straight from `openssl rand -base64 48`. Retyping tends to add a trailing
+space or a surrounding pair of quotes, and either one changes the hash.
+
+## 5. Search engines
+
+- Set the production URL once in `src/lib/site.ts` (or with `VITE_SITE_URL` on Vercel). It
+  drives the canonical links, Open Graph tags and the sitemap.
+- On Google Search Console, add `https://moijournal.vercel.app` as a URL-prefix property and
+  paste `https://moijournal.vercel.app/sitemap.xml` under **Sitemaps**. Listing the domain
+  through a DNS provider also works if you move to a custom domain.
+- `/app`, `/api/*` and `/recover` are kept out of the index in their own markup; the landing
+  page carries the keywords and FAQ structured data.
 
 ## Notes
 

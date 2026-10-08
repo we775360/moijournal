@@ -43,10 +43,19 @@ async function proxy({ request, params }: { request: Request; params: { _splat?:
       { status: 503 },
     );
   }
+  const proxyError = upstream.headers.get("x-mj-error");
+  if (proxyError) {
+    // The API could not verify our shared secret, so every signed-in request will fail
+    // until the two PROXY_SECRET values match. Surface it in the Vercel logs too.
+    console.error(
+      `[proxy] API rejected our PROXY_SECRET (${proxyError}). Check that the Vercel and Render values are identical.`,
+    );
+  }
   const out = new Headers({
     "content-type": upstream.headers.get("content-type") ?? "application/json",
     "cache-control": "private, no-store",
   });
+  if (proxyError) out.set("x-mj-error", proxyError);
   for (const c of upstream.headers.getSetCookie()) out.append("set-cookie", c);
   return new Response(upstream.body, { status: upstream.status, headers: out });
 }

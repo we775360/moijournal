@@ -1,20 +1,92 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 
+import { absoluteUrl, SITE_URL } from "@/lib/site";
+
 const TITLE = "MoiJournal — your cosy, private online diary";
 const DESC =
   "Write the sweet stuff and the harsh stuff. MoiJournal is a cute, end-to-end encrypted diary with scribbles, signatures and beautiful PDF exports.";
+// Words people actually search for when they look for a diary: "online diary", "journal
+// app", "private diary". Kept honest — every phrase here is something the site really is.
+const KEYWORDS =
+  "moijournal, online diary, private diary, encrypted diary, digital diary, diary app, journal app, online journal, write diary online, free online diary, secure diary, keep a diary online";
+
+const FAQ = [
+  {
+    q: "Is MoiJournal a private online diary?",
+    a: "Yes. Every page is encrypted on your own device before it is uploaded, so our servers only ever hold scrambled ciphertext. Not even we can read what you wrote.",
+  },
+  {
+    q: "Can I keep a diary online for free?",
+    a: "Yes. The free plan gives you 2 journal books and 10 pages, no card needed. Premium is ₹99 a month for 10 books and 50 pages.",
+  },
+  {
+    q: "Does MoiJournal work on my phone?",
+    a: "It works in any modern browser — iPhone, Android, tablet, laptop or desktop — and you can add it to your home screen so it feels just like a diary app.",
+  },
+  {
+    q: "What if I forget my password?",
+    a: "Signup gives you a one-time recovery code. Keep it somewhere safe, because it is the only other key to your diary. Lose both and your diary cannot be recovered — by design.",
+  },
+];
+
+// Rich results: tells Google this is a real web app (with pricing) rather than just a page.
+const STRUCTURED_DATA = [
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    name: "MoiJournal",
+    url: SITE_URL,
+    applicationCategory: "LifestyleApplication",
+    operatingSystem: "Any modern web browser",
+    description: DESC,
+    inLanguage: "en",
+    offers: [
+      { "@type": "Offer", name: "Free", price: "0", priceCurrency: "INR" },
+      { "@type": "Offer", name: "Premium", price: "99", priceCurrency: "INR" },
+    ],
+    featureList: [
+      "End-to-end encrypted diary pages",
+      "Bookshelf of journal books with photo covers",
+      "Finger, mouse and pen scribble pad",
+      "Signature pad",
+      "Print-ready PDF export",
+      "Personal themes",
+    ],
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "MoiJournal",
+    url: SITE_URL,
+    inLanguage: "en",
+  },
+];
+
+const FAQ_DATA = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: FAQ.map(({ q, a }) => ({
+    "@type": "Question",
+    name: q,
+    acceptedAnswer: { "@type": "Answer", text: a },
+  })),
+};
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: TITLE },
       { name: "description", content: DESC },
+      { name: "keywords", content: KEYWORDS },
       { property: "og:title", content: TITLE },
       { property: "og:description", content: DESC },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
+      { property: "og:url", content: absoluteUrl("/") },
+      { name: "twitter:title", content: TITLE },
+      { name: "twitter:description", content: DESC },
     ],
+    links: [{ rel: "canonical", href: absoluteUrl("/") }],
   }),
   component: Landing,
 });
@@ -35,6 +107,14 @@ function Landing() {
   useReveal();
   return (
     <div className="overflow-x-hidden">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(STRUCTURED_DATA) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(FAQ_DATA) }}
+      />
       <Nav />
       <Hero />
       <Marquee />
@@ -42,6 +122,7 @@ function Landing() {
       <Features />
       <Privacy />
       <Pricing />
+      <Questions />
       <Footer />
     </div>
   );
@@ -471,12 +552,33 @@ function Plan({
   );
 }
 
+function Questions() {
+  return (
+    <Section id="faq" kicker="you asked, we answered" title="MoiJournal, in plain words">
+      <div className="grid gap-6 md:grid-cols-2">
+        {FAQ.map(({ q, a }, i) => (
+          <div
+            key={q}
+            className="reveal sticker rounded-2xl bg-paper p-6"
+            style={{ transitionDelay: `${i * 100}ms` }}
+          >
+            <h3 className="text-xl font-bold text-ink">{q}</h3>
+            <p className="mt-2 text-muted-foreground">{a}</p>
+          </div>
+        ))}
+      </div>
+    </Section>
+  );
+}
+
 function Footer() {
   return (
     <footer className="border-t-2 border-ink">
       <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-5 py-8 sm:flex-row">
         <p className="font-display font-extrabold text-ink">MoiJournal</p>
-        <p className="font-hand text-xl text-muted-foreground">made with ♡ for every feeling</p>
+        <p className="font-elegant text-lg font-semibold italic tracking-wide text-ink">
+          A product by <span className="text-primary">Guneet</span>
+        </p>
         <p className="text-sm text-muted-foreground">© 2026 MoiJournal</p>
       </div>
     </footer>

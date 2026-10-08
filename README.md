@@ -15,6 +15,8 @@ exports a whole book as a print-ready PDF.
 - **Custom covers** — any photo, shrunk and encrypted on your device before upload.
 - **PDF export** of a whole book, cover page and all, generated in your browser.
 - **Personal themes** (Blush, Sage, Sky, Butter, Midnight) chosen at signup.
+- **Search-ready** marketing page: canonical URLs, Open Graph image, FAQ and app
+  structured data, plus `robots.txt` and `sitemap.xml`.
 
 ## Plans
 
@@ -91,11 +93,16 @@ API_ORIGIN=http://localhost:4000 PROXY_SECRET=<32+ char secret> npm run dev
 
 **Website (Vercel)**
 
-| Name           | Purpose                                                                |
-| -------------- | ---------------------------------------------------------------------- |
-| `API_ORIGIN`   | Base URL of the Render API, e.g. `https://moijournal-api.onrender.com` |
-| `PROXY_SECRET` | Shared secret; must match the API's value                              |
-| `NITRO_PRESET` | `vercel`                                                               |
+| Name            | Purpose                                                                |
+| --------------- | ---------------------------------------------------------------------- |
+| `API_ORIGIN`    | Base URL of the Render API, e.g. `https://moijournal.onrender.com`     |
+| `PROXY_SECRET`  | Shared secret; must match the API's value exactly                      |
+| `NITRO_PRESET`  | `vercel`                                                               |
+| `VITE_SITE_URL` | Optional: public URL used for canonical links, OG tags and the sitemap |
+
+If the two `PROXY_SECRET` values ever drift apart, every `/api` call answers `403 Forbidden`.
+The API's `/health` endpoint and its 403 bodies print short SHA-256 fingerprints of both
+values so the difference is obvious — see DEPLOY.md step 4.
 
 **API (Render)**
 

@@ -8,6 +8,7 @@
   --font-display: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
   --font-sans: "Nunito", ui-sans-serif, system-ui, sans-serif;
   --font-hand: "Caveat", cursive;
+  --font-elegant: "Playfair Display", ui-serif, Georgia, serif;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);

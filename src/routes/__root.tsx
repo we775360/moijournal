@@ -13,6 +13,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { Toaster } from "sonner";
 import { reportError } from "../lib/error-reporting";
+import { absoluteUrl, SITE_NAME } from "../lib/site";
 
 function NotFoundComponent() {
   return (
@@ -78,19 +79,31 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "MoiJournal" },
+      { title: SITE_NAME },
+      { name: "application-name", content: SITE_NAME },
+      { name: "robots", content: "index, follow" },
       { property: "og:type", content: "website" },
+      { property: "og:site_name", content: SITE_NAME },
+      { property: "og:locale", content: "en" },
+      { property: "og:image", content: absoluteUrl("/og-image.png") },
+      { property: "og:image:width", content: "1200" },
+      { property: "og:image:height", content: "630" },
+      { property: "og:image:alt", content: "MoiJournal — your cosy, private online diary" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:image", content: absoluteUrl("/og-image.png") },
       { name: "theme-color", content: "#f2b8c0" },
-      { name: "apple-mobile-web-app-title", content: "MoiJournal" },
+      { name: "apple-mobile-web-app-title", content: SITE_NAME },
+      { name: "format-detection", content: "telephone=no" },
     ],
+    // No canonical here: each public route declares its own, so a page never ends up with
+    // two competing canonicals.
     links: [
       { rel: "stylesheet", href: appCss },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Caveat:wght@500;700&family=Nunito:wght@400;600;700&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Caveat:wght@500;700&family=Nunito:wght@400;600;700&family=Playfair+Display:ital,wght@1,500;1,600;1,700&display=swap",
       },
       { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
       { rel: "icon", href: "/favicon.ico", sizes: "32x32", type: "image/x-icon" },

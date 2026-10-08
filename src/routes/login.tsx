@@ -4,6 +4,7 @@ import { api, ApiError } from "@/lib/api";
 import { deriveAuthKey, unlock } from "@/lib/crypto";
 import { startSession, type AuthResponse } from "@/lib/session";
 import { btnPrimary, ErrorNote, Field, Logo } from "@/components/mj";
+import { absoluteUrl } from "@/lib/site";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -12,7 +13,9 @@ export const Route = createFileRoute("/login")({
       { name: "description", content: "Unlock your private MoiJournal diary." },
       { property: "og:title", content: "Log in — MoiJournal" },
       { property: "og:description", content: "Unlock your private MoiJournal diary." },
+      { property: "og:url", content: absoluteUrl("/login") },
     ],
+    links: [{ rel: "canonical", href: absoluteUrl("/login") }],
   }),
   component: Login,
 });

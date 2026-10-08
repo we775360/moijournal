@@ -49,13 +49,30 @@ app.disable("x-powered-by");
 app.use(helmet());
 
 // --- Only the website proxy may call us ---
+// The website and this API must be given the *same* PROXY_SECRET. A mismatch is the one
+// deployment mistake that looks like a generic "Forbidden" from the browser, so say which
+// side is wrong instead: a short SHA-256 fingerprint lets the two values be compared
+// without either secret ever leaving its host (and is useless for brute force).
+const fingerprint = (value) => createHash("sha256").update(value).digest("hex").slice(0, 12);
+const PROXY_FINGERPRINT = fingerprint(PROXY_SECRET);
 const proxyDigest = createHash("sha256").update(PROXY_SECRET).digest();
 app.use((req, res, next) => {
   if (req.path === "/health") return next();
-  const got = createHash("sha256")
-    .update(req.get("x-mj-proxy") || "")
-    .digest();
-  if (!timingSafeEqual(got, proxyDigest)) return res.status(403).json({ error: "Forbidden" });
+  const sent = req.get("x-mj-proxy") || "";
+  const got = createHash("sha256").update(sent).digest();
+  if (!timingSafeEqual(got, proxyDigest)) {
+    console.error(
+      `[proxy] PROXY_SECRET mismatch: the website sent ${fingerprint(sent)}, this API expects ${PROXY_FINGERPRINT}. ` +
+        "Set the same value in both places and redeploy them.",
+    );
+    res.set("x-mj-error", "proxy-secret-mismatch");
+    return res.status(403).json({
+      error: "Forbidden",
+      code: "proxy-secret-mismatch",
+      sentFingerprint: fingerprint(sent),
+      expectedFingerprint: PROXY_FINGERPRINT,
+    });
+  }
   next();
 });
 // CSRF: browsers can't add this header cross-site without a preflight, which the website never allows.
@@ -172,7 +189,12 @@ const auth = wrap(async (req, res, next) => {
   next();
 });
 
-app.get("/health", (_req, res) => res.json({ ok: true }));
+// Left open (no proxy secret) so a deploy can be checked from a browser. The fingerprint
+// is the first 12 hex of SHA-256, which is how you tell whether Render and Vercel share
+// one PROXY_SECRET without copying the secret around.
+app.get("/health", (_req, res) =>
+  res.json({ ok: true, proxySecretFingerprint: PROXY_FINGERPRINT }),
+);
 
 // ---------- auth ----------
 app.post(

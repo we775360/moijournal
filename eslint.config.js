@@ -6,7 +6,9 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist", ".output", ".vinxi"] },
+  // `.vercel` holds the build output when a Vercel build is run locally; linting the
+  // bundled server inside it takes minutes and reports nothing useful.
+  { ignores: ["dist", ".output", ".vinxi", ".vercel"] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.{ts,tsx}"],
